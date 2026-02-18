@@ -1,6 +1,7 @@
-import { createFastModel } from '../../lib/openrouter.js';
+import { generateImage } from '../../lib/image-gen.js';
 import { getPromptTemplate } from '../prompts.js';
 import { getProgress } from '../progress.js';
+import { createFastModel } from '../../lib/openrouter.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
@@ -20,19 +21,40 @@ export const imageGenerateNode = async (
       .replace('{sections}', state.sections.map((_, i) => `Section ${i + 1}`).join(', '))
       .replace('{count}', '3');
 
+    console.log(`[ImageGenerate] Calling OpenRouter (openai/gpt-4o-mini) for prompts...`);
     const model = createFastModel({ temperature: 0.7, maxTokens: 500 });
 
     const response = await model.invoke([
       { role: 'user', content: prompt },
     ]);
+    console.log(`[ImageGenerate] Got prompt response (${String(response.content).length} chars)`);
 
     const imagePrompts = String(response.content)
       .split('\n')
-      .filter((line) => line.trim().length > 10)
+      .map((line) => line.replace(/^\d+[\.\)]\s*/, '').trim())
+      .filter((line) => line.length > 10)
       .slice(0, 3);
 
-    // TODO: Actually generate images via Imagen 3 / DALL-E 3 in a future update
+    // Generate actual images via Nano Banana Pro
     const imageUrls: string[] = [];
+    for (let i = 0; i < imagePrompts.length; i++) {
+      const pct = Math.round(((i + 1) / imagePrompts.length) * 100);
+      await progress.stageProgress(
+        'image_generate',
+        `Generating image ${i + 1}/${imagePrompts.length}...`,
+        pct,
+      );
+
+      try {
+        console.log(`[ImageGenerate] Generating image ${i + 1}/${imagePrompts.length}...`);
+        const result = await generateImage(imagePrompts[i]);
+        imageUrls.push(result.urlPath);
+        console.log(`[ImageGenerate] Image ${i + 1} saved: ${result.urlPath}`);
+      } catch (err) {
+        console.error(`[ImageGenerate] Image ${i + 1} failed:`, (err as Error).message);
+        // Continue with remaining images; don't fail the whole pipeline
+      }
+    }
 
     const tokensUsed = (response.usage_metadata?.input_tokens || 0) + (response.usage_metadata?.output_tokens || 0);
     await progress.stageCompleted('image_generate', Date.now() - startTime, tokensUsed);
