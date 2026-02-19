@@ -103,7 +103,7 @@ export const getPromptTemplate = async (stage: string, contentType?: string): Pr
         .from(prompts)
         .where(and(
           eq(prompts.stage, stage),
-          eq(prompts.contentType, contentType),
+          eq(prompts.contentType, contentType as any),
           eq(prompts.isActive, true),
         ))
         .orderBy(desc(prompts.version))
