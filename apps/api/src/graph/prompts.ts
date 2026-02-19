@@ -1,6 +1,6 @@
 import { db } from '../db/index.js';
 import { prompts } from '../db/schema.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, isNull } from 'drizzle-orm';
 
 const DEFAULT_PROMPTS: Record<string, string> = {
   research: `Ты — исследовательский ассистент для технологического блога. Проведи глубокое исследование указанной темы.
@@ -30,10 +30,9 @@ URL для анализа: {inputUrl}
 
 Требования к плану:
 1. Заголовок H1 — цепляющий, информативный, содержит ключевые слова
-2. 4–6 секций H2, каждая с кратким описанием содержания (2-3 предложения)
+2. {formatInstructions}
 3. Для каждой секции укажи ключевые тезисы и данные из исследования
-4. Обозначь места для вставки иллюстраций (после какой секции)
-5. Предусмотри введение и заключение
+4. Предусмотри введение и заключение
 
 Формат вывода — markdown, где каждая секция обозначена через ## заголовок, после которого идёт описание.`,
 
@@ -53,7 +52,7 @@ URL для анализа: {inputUrl}
 - Логичные переходы между абзацами
 - Технические термины с пояснениями, где это нужно
 - Если релевантно, органично вставь ссылки компании в текст
-- Объём: 300–500 слов для секции
+- {sectionInstructions}
 
 Выведи только текст секции в формате markdown (без повторения заголовка H2).`,
 
@@ -74,32 +73,59 @@ URL для анализа: {inputUrl}
 4. Проверь техническую точность формулировок
 5. Добавь плавные переходы между секциями
 6. Убери повторы, длинноты, общие фразы
-7. Убедись, что введение цепляет, а заключение содержит конкретный вывод
+7. {editInstructions}
 
 ВАЖНО: Выведи ТОЛЬКО текст статьи в формате markdown. БЕЗ вступительных фраз, БЕЗ комментариев от себя, БЕЗ строк "Meta Description", БЕЗ пояснений что ты изменил. Начни сразу с заголовка H1 статьи (# Заголовок). Сохрани всю структуру H1/H2.`,
 
-  image_prompt: `Сгенерируй промпты для создания иллюстраций к технологической статье.
+  image_prompt: `Сгенерируй один промпт для заглавного изображения технологической статьи.
 
 Заголовок статьи: {title}
-Секции: {sections}
+Краткое содержание: {summary}
 
-Создай {count} промптов для генерации изображений, каждый на отдельной строке.
-Каждый промпт должен описывать чистую, профессиональную иллюстрацию в tech-стиле.
-Промпты пиши на английском языке (для генератора изображений).
-Формат: минималистичный flat design, яркие цвета, без текста на изображении.`,
+Промпт должен описывать одно изображение, передающее суть и основную идею статьи.
+Промпт на английском языке.
+
+ОБЯЗАТЕЛЬНЫЕ требования к стилю:
+- Минималистичный tech-style: чистые линии, геометрия, схемы, устройства, интерфейсы
+- Яркие насыщенные цвета на тёмном или градиентном фоне
+- БЕЗ людей, БЕЗ лиц, БЕЗ фигур людей, БЕЗ совещаний, БЕЗ офисных сцен
+- БЕЗ текста на изображении
+- Формат: hero image 16:9, подходит как обложка статьи
+
+Выведи ТОЛЬКО один промпт, без нумерации и пояснений.`,
 };
 
-export const getPromptTemplate = async (stage: string): Promise<string> => {
+export const getPromptTemplate = async (stage: string, contentType?: string): Promise<string> => {
   try {
-    const [prompt] = await db.select()
+    // 1. Try format-specific prompt
+    if (contentType) {
+      const [specific] = await db.select()
+        .from(prompts)
+        .where(and(
+          eq(prompts.stage, stage),
+          eq(prompts.contentType, contentType),
+          eq(prompts.isActive, true),
+        ))
+        .orderBy(desc(prompts.version))
+        .limit(1);
+      if (specific) return specific.template;
+    }
+
+    // 2. Fallback to universal prompt (contentType IS NULL)
+    const [universal] = await db.select()
       .from(prompts)
-      .where(and(eq(prompts.stage, stage), eq(prompts.isActive, true)))
+      .where(and(
+        eq(prompts.stage, stage),
+        isNull(prompts.contentType),
+        eq(prompts.isActive, true),
+      ))
       .orderBy(desc(prompts.version))
       .limit(1);
-
-    if (prompt) return prompt.template;
+    if (universal) return universal.template;
   } catch {
     // DB not available, use defaults
   }
+
+  // 3. Fallback to hardcoded defaults
   return DEFAULT_PROMPTS[stage] || '';
 };
