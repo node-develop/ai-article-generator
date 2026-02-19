@@ -42,6 +42,7 @@ export const useCreateGeneration = () => {
   return useMutation({
     mutationFn: (body: {
       topic: string;
+      contentType?: string;
       inputUrl?: string;
       companyLinks?: string[];
       targetKeywords?: string[];
@@ -52,6 +53,7 @@ export const useCreateGeneration = () => {
         method: 'POST',
         body: JSON.stringify({
           topic: body.topic,
+          content_type: body.contentType,
           input_url: body.inputUrl,
           company_links: body.companyLinks,
           target_keywords: body.targetKeywords,
