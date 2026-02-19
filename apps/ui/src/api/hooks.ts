@@ -158,6 +158,20 @@ export const useUpdatePrompt = () => {
   });
 };
 
+export const useCreatePrompt = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { stage: string; content_type?: string; name: string; template: string }) =>
+      apiFetch<PromptResponse>('/api/prompts', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['prompts'] });
+    },
+  });
+};
+
 // ---------------------------------------------------------------------------
 // Stats
 // ---------------------------------------------------------------------------

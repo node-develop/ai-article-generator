@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { usePrompts, usePromptHistory, useUpdatePrompt } from '@/api/hooks';
+import { usePrompts, usePromptHistory, useUpdatePrompt, useCreatePrompt } from '@/api/hooks';
 import type { PromptResponse } from '@articleforge/shared/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import {
   Loader2,
   Eye,
   X,
+  Plus,
 } from 'lucide-react';
 
 const PIPELINE_STAGES = [
@@ -31,10 +32,19 @@ const PIPELINE_STAGES = [
 
 const STAGE_PLACEHOLDERS: Record<string, string[]> = {
   research: ['{topic}', '{target_keywords}', '{input_url}'],
-  outline: ['{topic}', '{research_results}', '{rag_context}', '{target_keywords}'],
-  write_section: ['{topic}', '{outline}', '{research_results}', '{rag_context}'],
-  edit_polish: ['{topic}', '{draft}', '{sections}', '{target_keywords}'],
-  image_prompt: ['{topic}', '{outline}', '{sections}'],
+  outline: ['{topic}', '{research_results}', '{rag_context}', '{formatInstructions}'],
+  write_section: ['{topic}', '{outline}', '{research_results}', '{rag_context}', '{sectionInstructions}'],
+  edit_polish: ['{topic}', '{draft}', '{sections}', '{target_keywords}', '{editInstructions}'],
+  image_prompt: ['{title}', '{summary}'],
+};
+
+const FORMAT_LABELS: Record<string, string> = {
+  all: 'Universal',
+  longread: 'Longread',
+  review: 'Review',
+  tutorial: 'Tutorial',
+  news: 'News',
+  digest: 'Digest',
 };
 
 const formatDate = (dateStr: string) =>
@@ -58,13 +68,20 @@ export const PromptEditorPage = () => {
   const { data: prompts, isLoading: promptsLoading } = usePrompts();
   const { data: history, isLoading: historyLoading } = usePromptHistory(selectedStage);
   const updatePrompt = useUpdatePrompt();
+  const createPrompt = useCreatePrompt();
 
+  // Find the active prompt for the selected stage + content type
   const activePrompt = Array.isArray(prompts)
     ? prompts.find((p) => {
         const stageMatch = p.stage === selectedStage && p.is_active;
         if (selectedContentType === 'all') return stageMatch && !p.content_type;
         return stageMatch && p.content_type === selectedContentType;
       })
+    : undefined;
+
+  // Find the universal prompt as fallback (for "create from universal" feature)
+  const universalPrompt = Array.isArray(prompts)
+    ? prompts.find((p) => p.stage === selectedStage && p.is_active && !p.content_type)
     : undefined;
 
   useEffect(() => {
@@ -103,6 +120,35 @@ export const PromptEditorPage = () => {
     );
   };
 
+  const handleCreateForFormat = () => {
+    if (selectedContentType === 'all' || !universalPrompt) return;
+
+    const formatLabel = FORMAT_LABELS[selectedContentType] || selectedContentType;
+    createPrompt.mutate(
+      {
+        stage: selectedStage,
+        content_type: selectedContentType,
+        name: `${universalPrompt.name} (${formatLabel})`,
+        template: universalPrompt.template,
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: 'Prompt created',
+            description: `Format-specific prompt created for ${formatLabel}. You can now edit it.`,
+          });
+        },
+        onError: (err) => {
+          toast({
+            title: 'Creation failed',
+            description: err instanceof Error ? err.message : 'Unknown error',
+            variant: 'destructive',
+          });
+        },
+      },
+    );
+  };
+
   const handleViewVersion = (version: PromptResponse) => {
     setViewingVersion(version);
     setEditName(version.name);
@@ -122,6 +168,8 @@ export const PromptEditorPage = () => {
   const placeholders = STAGE_PLACEHOLDERS[selectedStage] ?? [];
   const stageLabel = PIPELINE_STAGES.find((s) => s.key === selectedStage)?.label ?? selectedStage;
   const historyItems = Array.isArray(history) ? history : [];
+  const isFormatSelected = selectedContentType !== 'all';
+  const noFormatPrompt = isFormatSelected && !activePrompt;
 
   return (
     <div className="flex h-full gap-6">
@@ -165,10 +213,52 @@ export const PromptEditorPage = () => {
 
       {/* Main editor area */}
       <div className="flex-1 space-y-4">
+        {/* Content Type Filter — always visible */}
+        <div className="flex items-center gap-3">
+          <label className="text-sm font-medium text-muted-foreground">Format:</label>
+          <Select value={selectedContentType} onValueChange={setSelectedContentType}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Universal (default)</SelectItem>
+              <SelectItem value="longread">Longread</SelectItem>
+              <SelectItem value="review">Review</SelectItem>
+              <SelectItem value="tutorial">Tutorial</SelectItem>
+              <SelectItem value="news">News</SelectItem>
+              <SelectItem value="digest">Digest</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
         {promptsLoading ? (
           <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : noFormatPrompt ? (
+          /* No format-specific prompt — show create option */
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center gap-4 py-12">
+              <p className="text-muted-foreground text-center">
+                No <strong>{FORMAT_LABELS[selectedContentType]}</strong> prompt for stage "{stageLabel}".
+                <br />
+                <span className="text-sm">
+                  The universal prompt is used by default. Create a format-specific version to customize it.
+                </span>
+              </p>
+              <Button
+                onClick={handleCreateForFormat}
+                disabled={!universalPrompt || createPrompt.isPending}
+              >
+                {createPrompt.isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="mr-2 h-4 w-4" />
+                )}
+                Create {FORMAT_LABELS[selectedContentType]} prompt from universal
+              </Button>
+            </CardContent>
+          </Card>
         ) : !activePrompt ? (
           <Card>
             <CardContent className="flex h-64 items-center justify-center">
@@ -186,6 +276,9 @@ export const PromptEditorPage = () => {
                   {viewingVersion ? viewingVersion.name : editName}
                 </h2>
                 <Badge variant="secondary">{stageLabel}</Badge>
+                {activePrompt.content_type && (
+                  <Badge variant="outline">{FORMAT_LABELS[activePrompt.content_type] || activePrompt.content_type}</Badge>
+                )}
                 {viewingVersion && (
                   <Badge variant="outline">
                     Version {viewingVersion.version} (read-only)
@@ -217,29 +310,6 @@ export const PromptEditorPage = () => {
                   </Button>
                 )}
               </div>
-            </div>
-
-            {/* Content Type Filter */}
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-muted-foreground">Format:</label>
-              <Select value={selectedContentType} onValueChange={setSelectedContentType}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Universal (default)</SelectItem>
-                  <SelectItem value="longread">Longread</SelectItem>
-                  <SelectItem value="review">Review</SelectItem>
-                  <SelectItem value="tutorial">Tutorial</SelectItem>
-                  <SelectItem value="news">News</SelectItem>
-                  <SelectItem value="digest">Digest</SelectItem>
-                </SelectContent>
-              </Select>
-              {selectedContentType !== 'all' && !activePrompt && (
-                <span className="text-xs text-muted-foreground">
-                  No format-specific prompt. Using universal default.
-                </span>
-              )}
             </div>
 
             {/* Prompt Name */}
