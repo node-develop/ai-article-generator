@@ -1,4 +1,12 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+// Load .env from project root (handles running from any working directory)
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const envPath = resolve(__dirname, '../../../.env');
+dotenv.config({ path: envPath });
+console.log(`[Worker] Loading .env from: ${envPath}`);
 import { Worker } from 'bullmq';
 import { createRedisConnection } from './queue/index.js';
 import { createGenerationGraph } from './graph/graph.js';
@@ -9,6 +17,14 @@ import { eq } from 'drizzle-orm';
 import { createPublisher, publishEvent } from './realtime/pubsub.js';
 import { getGenerationChannel } from '@articleforge/shared';
 
+// Validate required env vars at startup
+if (!process.env.OPEN_ROUTER_API_KEY) {
+  console.error('[Worker] FATAL: OPEN_ROUTER_API_KEY is not set!');
+  console.error('[Worker] Available env vars:', Object.keys(process.env).filter(k => k.includes('KEY') || k.includes('URL') || k.includes('PORT')).join(', '));
+  process.exit(1);
+}
+console.log(`[Worker] OPEN_ROUTER_API_KEY loaded (${process.env.OPEN_ROUTER_API_KEY.slice(0, 12)}...)`);
+
 const publisher = createPublisher();
 
 const updateRunStatus = async (runId: string, status: string, extra: Record<string, any> = {}) => {
@@ -18,16 +34,21 @@ const updateRunStatus = async (runId: string, status: string, extra: Record<stri
 };
 
 const worker = new Worker('article-generation', async (job) => {
-  const { runId, topic, userId, inputUrl, companyLinks, targetKeywords, enableReview } = job.data;
+  const { runId, topic, userId, inputUrl, companyLinks, targetKeywords, enableReview, contentType } = job.data;
   const channel = getGenerationChannel(runId);
 
-  console.log(`[Worker] Starting generation: ${runId} - "${topic}"`);
+  console.log(`[Worker] ====================================`);
+  console.log(`[Worker] Job picked up: ${runId}`);
+  console.log(`[Worker] Topic: "${topic}"`);
+  console.log(`[Worker] Channel: ${channel}`);
+  console.log(`[Worker] ====================================`);
 
   // Create progress reporter for this run
   const progress = createProgressReporter(publisher, channel);
 
   try {
     await updateRunStatus(runId, 'research');
+    console.log(`[Worker] DB status updated to 'research', invoking graph...`);
 
     const graph = createGenerationGraph();
 
@@ -39,6 +60,7 @@ const worker = new Worker('article-generation', async (job) => {
       companyLinks: companyLinks || [],
       targetKeywords: targetKeywords || [],
       enableReview: enableReview || false,
+      contentType: contentType || 'longread',
       researchResults: '',
       sources: [],
       ragContext: '',
