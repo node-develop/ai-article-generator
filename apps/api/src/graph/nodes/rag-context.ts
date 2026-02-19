@@ -1,6 +1,7 @@
 import { getProgress } from '../progress.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
+import type { ContentType } from '@articleforge/shared';
 
 export const ragContextNode = async (
   state: GenerationStateType,
@@ -15,10 +16,20 @@ export const ragContextNode = async (
 
     await progress.stageProgress('rag_context', 'Searching reference articles...');
 
-    const chunks = await retrieveRelevantChunks(state.topic, {
+    // Try format-specific retrieval first
+    let chunks = await retrieveRelevantChunks(state.topic, {
       topK: 10,
       minSimilarity: 0.3,
+      contentType: state.contentType as ContentType,
     });
+
+    // Fallback to all types if not enough format-specific chunks
+    if (chunks.length < 3) {
+      chunks = await retrieveRelevantChunks(state.topic, {
+        topK: 10,
+        minSimilarity: 0.3,
+      });
+    }
 
     const ragContext = chunks
       .map((c) => `[${c.articleTitle}] ${c.chunkText}`)

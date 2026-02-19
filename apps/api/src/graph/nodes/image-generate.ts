@@ -14,46 +14,44 @@ export const imageGenerateNode = async (
   const startTime = Date.now();
 
   try {
-    // Generate image prompts using LLM
-    const template = await getPromptTemplate('image_prompt');
+    // Generate a single hero image prompt
+    const template = await getPromptTemplate('image_prompt', state.contentType);
+
+    // Build a short summary from the outline (first 500 chars)
+    const summary = state.outline.slice(0, 500);
+
     const prompt = template
       .replace('{title}', state.topic)
-      .replace('{sections}', state.sections.map((_, i) => `Section ${i + 1}`).join(', '))
-      .replace('{count}', '3');
+      .replace('{summary}', summary);
 
-    console.log(`[ImageGenerate] Calling OpenRouter (openai/gpt-4o-mini) for prompts...`);
-    const model = createFastModel({ temperature: 0.7, maxTokens: 500 });
+    console.log(`[ImageGenerate] Calling OpenRouter (openai/gpt-4o-mini) for hero image prompt...`);
+    const model = createFastModel({ temperature: 0.7, maxTokens: 300 });
 
     const response = await model.invoke([
       { role: 'user', content: prompt },
     ]);
     console.log(`[ImageGenerate] Got prompt response (${String(response.content).length} chars)`);
 
-    const imagePrompts = String(response.content)
+    // Extract the single prompt (take the first meaningful line)
+    const heroPrompt = String(response.content)
       .split('\n')
       .map((line) => line.replace(/^\d+[\.\)]\s*/, '').trim())
       .filter((line) => line.length > 10)
-      .slice(0, 3);
+      [0] || 'Minimalist tech illustration, clean geometric shapes, bright colors on dark background, 16:9';
 
-    // Generate actual images via Nano Banana Pro
+    // Generate the hero image
+    const imagePrompts = [heroPrompt];
     const imageUrls: string[] = [];
-    for (let i = 0; i < imagePrompts.length; i++) {
-      const pct = Math.round(((i + 1) / imagePrompts.length) * 100);
-      await progress.stageProgress(
-        'image_generate',
-        `Generating image ${i + 1}/${imagePrompts.length}...`,
-        pct,
-      );
 
-      try {
-        console.log(`[ImageGenerate] Generating image ${i + 1}/${imagePrompts.length}...`);
-        const result = await generateImage(imagePrompts[i]);
-        imageUrls.push(result.urlPath);
-        console.log(`[ImageGenerate] Image ${i + 1} saved: ${result.urlPath}`);
-      } catch (err) {
-        console.error(`[ImageGenerate] Image ${i + 1} failed:`, (err as Error).message);
-        // Continue with remaining images; don't fail the whole pipeline
-      }
+    await progress.stageProgress('image_generate', 'Generating hero image...', 50);
+
+    try {
+      console.log(`[ImageGenerate] Generating hero image...`);
+      const result = await generateImage(heroPrompt);
+      imageUrls.push(result.urlPath);
+      console.log(`[ImageGenerate] Hero image saved: ${result.urlPath}`);
+    } catch (err) {
+      console.error(`[ImageGenerate] Hero image failed:`, (err as Error).message);
     }
 
     const tokensUsed = (response.usage_metadata?.input_tokens || 0) + (response.usage_metadata?.output_tokens || 0);

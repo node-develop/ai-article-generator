@@ -1,5 +1,6 @@
 import { createChatModel } from '../../lib/openrouter.js';
 import { getPromptTemplate } from '../prompts.js';
+import { getFormatConfig } from '../format-config.js';
 import { getProgress } from '../progress.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
@@ -42,7 +43,8 @@ export const writeSectionsNode = async (
   const startTime = Date.now();
 
   try {
-    const template = await getPromptTemplate('write_section');
+    const template = await getPromptTemplate('write_section', state.contentType);
+    const formatConfig = getFormatConfig(state.contentType);
     const sectionDefs = parseSections(state.outline);
 
     const model = createChatModel({ temperature: 0.7, maxTokens: 2000 });
@@ -65,11 +67,14 @@ export const writeSectionsNode = async (
         .replace('{outline}', state.outline)
         .replace('{research}', state.researchResults.slice(0, 2000))
         .replace('{ragContext}', state.ragContext.slice(0, 2000))
-        .replace('{companyLinks}', state.companyLinks.join(', '));
+        .replace('{companyLinks}', state.companyLinks.join(', '))
+        .replace('{sectionInstructions}', formatConfig.sectionInstructions);
 
+      console.log(`[WriteSections] Calling OpenRouter for section ${i + 1}/${sectionDefs.length}: "${section.title}"...`);
       const response = await model.invoke([
         { role: 'user', content: prompt },
       ]);
+      console.log(`[WriteSections] Section ${i + 1} done (${String(response.content).length} chars)`);
 
       sections.push(String(response.content));
       totalNewTokens += (response.usage_metadata?.input_tokens || 0) + (response.usage_metadata?.output_tokens || 0);

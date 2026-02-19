@@ -13,39 +13,33 @@ export const assembleNode = async (
   const startTime = Date.now();
 
   try {
-    // Build final markdown article
     let finalArticle = state.editedContent || state.fullDraft;
 
-    // Insert images if available
+    // Insert hero image before H1 heading
     if (state.imageUrls.length > 0) {
-      for (let i = 0; i < state.imageUrls.length; i++) {
-        const imgMd = `\n\n![Illustration ${i + 1}](${state.imageUrls[i]})\n\n`;
-        // Insert after the (i+1)th H2 heading
-        const h2Regex = /\n##\s/g;
-        let match;
-        let count = 0;
-        while ((match = h2Regex.exec(finalArticle)) !== null) {
-          count++;
-          if (count === i + 1) {
-            const insertPos = finalArticle.indexOf('\n', match.index + 1);
-            if (insertPos > 0) {
-              finalArticle = finalArticle.slice(0, insertPos) + imgMd + finalArticle.slice(insertPos);
-            }
-            break;
-          }
-        }
+      const heroUrl = state.imageUrls[0];
+      const heroMd = `![Hero](${heroUrl})\n\n`;
+
+      // Find the first H1 heading and insert image before it
+      const h1Match = finalArticle.match(/^(#\s)/m);
+      if (h1Match && h1Match.index !== undefined) {
+        finalArticle = finalArticle.slice(0, h1Match.index) + heroMd + finalArticle.slice(h1Match.index);
+      } else {
+        // No H1 found — prepend the image
+        finalArticle = heroMd + finalArticle;
       }
     }
 
     await progress.stageProgress('assemble', 'Saving article to database...');
+    console.log(`[Assemble] Inserting article into DB (${finalArticle.length} chars)...`);
 
-    // Store as generated article
+    // Store as generated article with the correct content type
     const [article] = await db.insert(articles).values({
       title: state.topic,
       rawText: finalArticle,
       cleanText: finalArticle,
       charCount: finalArticle.length,
-      contentType: 'longread',
+      contentType: (state.contentType || 'longread') as any,
       isReference: false,
       createdBy: state.userId,
       metadata: {
@@ -55,13 +49,13 @@ export const assembleNode = async (
       },
     }).returning();
 
-    // Store image prompts
+    // Store hero image metadata
     if (state.imagePrompts.length > 0) {
       const imageValues = state.imagePrompts.map((prompt, i) => ({
         runId: state.runId,
         promptUsed: prompt,
         imageUrl: state.imageUrls[i] || '',
-        position: `section_${i + 1}`,
+        position: 'hero',
       }));
 
       await db.insert(generatedImages).values(imageValues);

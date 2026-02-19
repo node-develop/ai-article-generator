@@ -1,5 +1,6 @@
 import { createChatModel } from '../../lib/openrouter.js';
 import { getPromptTemplate } from '../prompts.js';
+import { getFormatConfig } from '../format-config.js';
 import { getProgress } from '../progress.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
@@ -13,12 +14,14 @@ export const editPolishNode = async (
   const startTime = Date.now();
 
   try {
-    const template = await getPromptTemplate('edit_polish');
+    const template = await getPromptTemplate('edit_polish', state.contentType);
+    const formatConfig = getFormatConfig(state.contentType);
 
     const prompt = template
       .replace('{draft}', state.fullDraft)
       .replace('{ragContext}', state.ragContext.slice(0, 2000))
-      .replace('{keywords}', state.targetKeywords.join(', '));
+      .replace('{keywords}', state.targetKeywords.join(', '))
+      .replace('{editInstructions}', formatConfig.editInstructions);
 
     console.log(`[EditPolish] Calling OpenRouter (google/gemini-3-pro-preview)...`);
     const model = createChatModel({ temperature: 0.3, maxTokens: 8000 });
