@@ -4,6 +4,7 @@ import { Sparkles, Plus, X, Loader2, Link as LinkIcon, Tag, Globe } from 'lucide
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -97,7 +98,7 @@ export const NewGenerationPage = () => {
 
   const [topic, setTopic] = useState('');
   const [contentType, setContentType] = useState<ContentType>('longread');
-  const [inputUrl, setInputUrl] = useState('');
+  const [inputUrls, setInputUrls] = useState<string[]>([]);
   const [companyLinks, setCompanyLinks] = useState<string[]>([]);
   const [targetKeywords, setTargetKeywords] = useState<string[]>([]);
   const [enableOutlineReview, setEnableOutlineReview] = useState(false);
@@ -111,7 +112,7 @@ export const NewGenerationPage = () => {
       const result = await createMut.mutateAsync({
         topic: topic.trim(),
         contentType,
-        inputUrl: inputUrl.trim() || undefined,
+        inputUrls: inputUrls.length > 0 ? inputUrls : undefined,
         companyLinks: companyLinks.length > 0 ? companyLinks : undefined,
         targetKeywords: targetKeywords.length > 0 ? targetKeywords : undefined,
         enableOutlineReview,
@@ -147,15 +148,16 @@ export const NewGenerationPage = () => {
               <Label htmlFor="topic">
                 Topic <span className="text-destructive">*</span>
               </Label>
-              <Input
+              <Textarea
                 id="topic"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
-                placeholder="e.g., Best practices for React Server Components in 2026"
+                placeholder="Article topic, context, reference materials, and any specific requirements..."
+                rows={5}
                 required
               />
               <p className="text-xs text-muted-foreground">
-                The main subject of the article to generate.
+                Describe the article topic in detail. You can include context, reference materials, specific angles, and any requirements for the generation pipeline.
               </p>
             </div>
 
@@ -179,24 +181,15 @@ export const NewGenerationPage = () => {
               </p>
             </div>
 
-            {/* Input URL */}
-            <div className="space-y-2">
-              <Label htmlFor="inputUrl">Input URL (optional)</Label>
-              <div className="relative">
-                <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="inputUrl"
-                  value={inputUrl}
-                  onChange={(e) => setInputUrl(e.target.value)}
-                  placeholder="https://example.com/source-article"
-                  type="url"
-                  className="pl-9"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Provide a URL to use as the primary source for the article.
-              </p>
-            </div>
+            {/* Input URLs */}
+            <MultiValueInput
+              label="Source URLs (optional)"
+              placeholder="https://example.com/source-article"
+              values={inputUrls}
+              onAdd={(v) => setInputUrls((prev) => [...prev, v])}
+              onRemove={(i) => setInputUrls((prev) => prev.filter((_, idx) => idx !== i))}
+              icon={Globe}
+            />
 
             <Separator />
 

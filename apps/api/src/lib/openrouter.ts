@@ -6,6 +6,7 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 const getApiKey = (): string => {
   const key = process.env.OPEN_ROUTER_API_KEY;
   if (!key) throw new Error('OPEN_ROUTER_API_KEY is not set');
+  console.log(`[OpenRouter] API key present (${key.slice(0, 8)}...)`);
   return key;
 };
 

@@ -11,6 +11,7 @@ import { Worker } from 'bullmq';
 import { createRedisConnection } from './queue/index.js';
 import { createGenerationGraph } from './graph/graph.js';
 import { createProgressReporter } from './graph/progress.js';
+import { createInterruptHandler } from './graph/interrupt.js';
 import { db } from './db/index.js';
 import { generationRuns } from './db/schema.js';
 import { eq } from 'drizzle-orm';
@@ -34,7 +35,7 @@ const updateRunStatus = async (runId: string, status: string, extra: Record<stri
 };
 
 const worker = new Worker('article-generation', async (job) => {
-  const { runId, topic, userId, inputUrl, companyLinks, targetKeywords, enableReview, contentType } = job.data;
+  const { runId, topic, userId, inputUrls, companyLinks, targetKeywords, enableOutlineReview, enableEditReview, contentType } = job.data;
   const channel = getGenerationChannel(runId);
 
   console.log(`[Worker] ====================================`);
@@ -43,8 +44,9 @@ const worker = new Worker('article-generation', async (job) => {
   console.log(`[Worker] Channel: ${channel}`);
   console.log(`[Worker] ====================================`);
 
-  // Create progress reporter for this run
+  // Create progress reporter and interrupt handler for this run
   const progress = createProgressReporter(publisher, channel);
+  const interruptHandler = createInterruptHandler(channel);
 
   try {
     await updateRunStatus(runId, 'research');
@@ -56,10 +58,11 @@ const worker = new Worker('article-generation', async (job) => {
       runId,
       userId,
       topic,
-      inputUrl: inputUrl || null,
+      inputUrls: inputUrls || [],
       companyLinks: companyLinks || [],
       targetKeywords: targetKeywords || [],
-      enableReview: enableReview || false,
+      enableOutlineReview: enableOutlineReview || false,
+      enableEditReview: enableEditReview || false,
       contentType: contentType || 'longread',
       researchResults: '',
       sources: [],
@@ -78,7 +81,7 @@ const worker = new Worker('article-generation', async (job) => {
       currentStage: 'pending',
       error: null,
     }, {
-      configurable: { progress },
+      configurable: { progress, interruptHandler },
     });
 
     // Update run as completed

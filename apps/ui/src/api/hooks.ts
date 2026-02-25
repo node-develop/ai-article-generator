@@ -43,7 +43,7 @@ export const useCreateGeneration = () => {
     mutationFn: (body: {
       topic: string;
       contentType?: string;
-      inputUrl?: string;
+      inputUrls?: string[];
       companyLinks?: string[];
       targetKeywords?: string[];
       enableOutlineReview?: boolean;
@@ -54,7 +54,7 @@ export const useCreateGeneration = () => {
         body: JSON.stringify({
           topic: body.topic,
           content_type: body.contentType,
-          input_url: body.inputUrl,
+          input_urls: body.inputUrls,
           company_links: body.companyLinks,
           target_keywords: body.targetKeywords,
           enable_outline_review: body.enableOutlineReview,

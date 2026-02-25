@@ -26,7 +26,18 @@ const parseSections = (outline: string): Array<{ title: string; description: str
     sections.push({ title: currentTitle, description: currentDesc.trim() });
   }
 
-  // Fallback if no sections found
+  // Fallback: try splitting by numbered items (1. 2. 3.) or bold markers
+  if (sections.length === 0) {
+    const numberedItems = outline.match(/(?:^|\n)\d+[\.\)]\s*.+/g);
+    if (numberedItems && numberedItems.length >= 2) {
+      for (const item of numberedItems) {
+        const title = item.replace(/^\n?\d+[\.\)]\s*/, '').trim();
+        if (title) sections.push({ title, description: title });
+      }
+    }
+  }
+
+  // Last resort fallback
   if (sections.length === 0) {
     sections.push({ title: 'Main Content', description: outline });
   }
@@ -47,7 +58,7 @@ export const writeSectionsNode = async (
     const formatConfig = getFormatConfig(state.contentType);
     const sectionDefs = parseSections(state.outline);
 
-    const model = createChatModel({ temperature: 0.7, maxTokens: 2000 });
+    const model = createChatModel({ temperature: 0.7, maxTokens: formatConfig.sectionMaxTokens });
 
     const sections: string[] = [];
     let totalNewTokens = 0;
@@ -65,8 +76,8 @@ export const writeSectionsNode = async (
         .replace('{sectionTitle}', section.title)
         .replace('{sectionDescription}', section.description)
         .replace('{outline}', state.outline)
-        .replace('{research}', state.researchResults.slice(0, 2000))
-        .replace('{ragContext}', state.ragContext.slice(0, 2000))
+        .replace('{research}', state.researchResults.slice(0, formatConfig.contextSliceLimit))
+        .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
         .replace('{companyLinks}', state.companyLinks.join(', '))
         .replace('{sectionInstructions}', formatConfig.sectionInstructions);
 

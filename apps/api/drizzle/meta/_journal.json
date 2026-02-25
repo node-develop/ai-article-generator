@@ -15,6 +15,13 @@
       "when": 1771481375832,
       "tag": "0001_wandering_firebrand",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771977600000,
+      "tag": "0002_input_urls_migration",
+      "breakpoints": true
     }
   ]
 }

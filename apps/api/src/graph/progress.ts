@@ -1,12 +1,14 @@
 import type Redis from 'ioredis';
 import { publishEvent } from '../realtime/pubsub.js';
-import type { SSEStageStarted, SSEStageProgress, SSEStageCompleted, SSEStageFailed } from '@articleforge/shared';
+import type { SSEStageStarted, SSEStageProgress, SSEStageCompleted, SSEStageFailed, SSEInterruptWaiting, SSEInterruptResumed } from '@articleforge/shared';
 
 export interface ProgressReporter {
   stageStarted(stage: string): Promise<void>;
   stageProgress(stage: string, message: string, percent?: number): Promise<void>;
   stageCompleted(stage: string, durationMs: number, tokens?: number): Promise<void>;
   stageFailed(stage: string, error: string): Promise<void>;
+  interruptWaiting(stage: string, data: unknown): Promise<void>;
+  interruptResumed(stage: string): Promise<void>;
 }
 
 export const createProgressReporter = (
@@ -14,6 +16,7 @@ export const createProgressReporter = (
   channel: string,
 ): ProgressReporter => ({
   stageStarted: async (stage) => {
+    console.log(`[Progress] ${stage} → STARTED`);
     const event: SSEStageStarted = {
       type: 'stage:started',
       stage,
@@ -23,6 +26,7 @@ export const createProgressReporter = (
   },
 
   stageProgress: async (stage, message, percent) => {
+    console.log(`[Progress] ${stage} → ${message}${percent !== undefined ? ` (${percent}%)` : ''}`);
     const event: SSEStageProgress = {
       type: 'stage:progress',
       stage,
@@ -33,6 +37,7 @@ export const createProgressReporter = (
   },
 
   stageCompleted: async (stage, durationMs, tokens) => {
+    console.log(`[Progress] ${stage} → COMPLETED in ${durationMs}ms${tokens ? ` (${tokens} tokens)` : ''}`);
     const event: SSEStageCompleted = {
       type: 'stage:completed',
       stage,
@@ -43,10 +48,30 @@ export const createProgressReporter = (
   },
 
   stageFailed: async (stage, error) => {
+    console.error(`[Progress] ${stage} → FAILED: ${error}`);
     const event: SSEStageFailed = {
       type: 'stage:failed',
       stage,
       error,
+    };
+    await publishEvent(publisher, channel, event);
+  },
+
+  interruptWaiting: async (stage, data) => {
+    console.log(`[Progress] ${stage} → INTERRUPT WAITING`);
+    const event: SSEInterruptWaiting = {
+      type: 'interrupt:waiting',
+      stage,
+      data,
+    };
+    await publishEvent(publisher, channel, event);
+  },
+
+  interruptResumed: async (stage) => {
+    console.log(`[Progress] ${stage} → INTERRUPT RESUMED`);
+    const event: SSEInterruptResumed = {
+      type: 'interrupt:resumed',
+      stage,
     };
     await publishEvent(publisher, channel, event);
   },
@@ -63,5 +88,7 @@ export const getProgress = (config?: { configurable?: Record<string, unknown> })
     stageProgress: async () => {},
     stageCompleted: async () => {},
     stageFailed: async () => {},
+    interruptWaiting: async () => {},
+    interruptResumed: async () => {},
   };
 };

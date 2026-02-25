@@ -1,0 +1,38 @@
+# Post-deploy article ingestion
+#
+# Usage (from Dokploy shell or SSH):
+#   # Copy your JSONL file to the server first, then:
+#   docker compose -f docker-compose.yml -f docker-compose.ingest.yml run --rm ingest
+#
+#   # Incremental (add only new articles):
+#   docker compose -f docker-compose.yml -f docker-compose.ingest.yml run --rm ingest \
+#     node dist/ingestion/cli.js --mode=add --file=/data/articles.jsonl
+#
+#   # Check stats:
+#   docker compose -f docker-compose.yml -f docker-compose.ingest.yml run --rm ingest \
+#     node dist/ingestion/cli.js --mode=stats
+#
+#   # Reindex (rebuild all chunks + embeddings):
+#   docker compose -f docker-compose.yml -f docker-compose.ingest.yml run --rm ingest \
+#     node dist/ingestion/cli.js --mode=reindex
+
+services:
+  ingest:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    command: node dist/ingestion/cli.js --mode=full --file=/data/articles.jsonl
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-articleforge}
+      REDIS_URL: redis://redis:6379
+      OPEN_ROUTER_API_KEY: ${OPEN_ROUTER_API_KEY}
+    volumes:
+      - ${ARTICLES_PATH:-./raw-articles}:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    restart: "no"
+    profiles:
+      - ingest

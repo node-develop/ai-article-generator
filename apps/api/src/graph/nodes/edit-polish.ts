@@ -14,17 +14,28 @@ export const editPolishNode = async (
   const startTime = Date.now();
 
   try {
+    const MIN_DRAFT_LENGTH = 100;
+    if (state.fullDraft.length < MIN_DRAFT_LENGTH) {
+      console.warn(`[EditPolish] Draft too short (${state.fullDraft.length} chars), skipping edit stage — returning draft as-is`);
+      await progress.stageCompleted('edit_polish', Date.now() - startTime, 0);
+      return {
+        editedContent: state.fullDraft,
+        totalTokens: state.totalTokens,
+        currentStage: 'editing',
+      };
+    }
+
     const template = await getPromptTemplate('edit_polish', state.contentType);
     const formatConfig = getFormatConfig(state.contentType);
 
     const prompt = template
       .replace('{draft}', state.fullDraft)
-      .replace('{ragContext}', state.ragContext.slice(0, 2000))
+      .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
       .replace('{keywords}', state.targetKeywords.join(', '))
       .replace('{editInstructions}', formatConfig.editInstructions);
 
-    console.log(`[EditPolish] Calling OpenRouter (google/gemini-3-pro-preview)...`);
-    const model = createChatModel({ temperature: 0.3, maxTokens: 8000 });
+    console.log(`[EditPolish] Calling OpenRouter (google/gemini-3-pro-preview) (maxTokens: ${formatConfig.editMaxTokens})...`);
+    const model = createChatModel({ temperature: 0.3, maxTokens: formatConfig.editMaxTokens });
 
     const response = await model.invoke([
       { role: 'user', content: prompt },

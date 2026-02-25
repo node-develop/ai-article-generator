@@ -4,6 +4,8 @@ import { db } from '../db/index.js';
 import { generationRuns, generatedImages } from '../db/schema.js';
 import { eq, desc, count } from 'drizzle-orm';
 import { enqueueGeneration } from '../queue/index.js';
+import { createPublisher, publishEvent } from '../realtime/pubsub.js';
+import { getGenerationChannel } from '@articleforge/shared';
 
 type AuthUser = {
   id: string;
@@ -21,17 +23,24 @@ generationsRoutes.post('/', async (c) => {
   }
 
   const body = await c.req.json();
-  const { topic, content_type, input_url, company_links, target_keywords, enable_outline_review, enable_edit_review } = body;
+  const { topic, content_type, input_urls, input_url, company_links, target_keywords, enable_outline_review, enable_edit_review } = body;
 
   if (!topic) {
     return c.json({ error: 'Topic is required' }, 400);
   }
 
+  // Accept both input_urls (array) and input_url (string) for backward compat
+  const resolvedInputUrls: string[] = input_urls
+    ? input_urls
+    : input_url
+      ? [input_url]
+      : [];
+
   const [run] = await db.insert(generationRuns).values({
     userId: user.id,
     topic,
     contentType: content_type || 'longread',
-    inputUrl: input_url || null,
+    inputUrls: resolvedInputUrls,
     companyLinks: company_links || [],
     targetKeywords: target_keywords || [],
     enableReview: enable_outline_review || enable_edit_review || false,
@@ -43,10 +52,11 @@ generationsRoutes.post('/', async (c) => {
     topic,
     userId: user.id,
     contentType: content_type || 'longread',
-    inputUrl: input_url,
+    inputUrls: resolvedInputUrls,
     companyLinks: company_links,
     targetKeywords: target_keywords,
-    enableReview: enable_outline_review || enable_edit_review || false,
+    enableOutlineReview: enable_outline_review || false,
+    enableEditReview: enable_edit_review || false,
   });
 
   return c.json(toSnakeKeys(run), 201);
@@ -94,6 +104,54 @@ generationsRoutes.get('/:id', async (c) => {
   const images = await db.select().from(generatedImages).where(eq(generatedImages.runId, id));
 
   return c.json(toSnakeKeys({ ...run, images }));
+});
+
+const reviewPublisher = createPublisher();
+
+generationsRoutes.post('/:id/review', async (c) => {
+  const id = c.req.param('id');
+  const user = c.get('user' as never) as AuthUser;
+  const body = await c.req.json();
+  const { action, stage, feedback, updated_data } = body;
+
+  if (!action || !stage) {
+    return c.json({ error: 'action and stage are required' }, 400);
+  }
+
+  if (!['approve', 'reject', 'edit'].includes(action)) {
+    return c.json({ error: 'action must be approve, reject, or edit' }, 400);
+  }
+
+  if (action === 'reject' && !feedback) {
+    return c.json({ error: 'feedback is required for rejection' }, 400);
+  }
+
+  if (action === 'edit' && updated_data === undefined) {
+    return c.json({ error: 'updated_data is required for edit action' }, 400);
+  }
+
+  // Verify run exists and user has access
+  const [run] = await db.select().from(generationRuns).where(eq(generationRuns.id, id)).limit(1);
+
+  if (!run) {
+    return c.json({ error: 'Generation not found' }, 404);
+  }
+
+  if (user.role !== 'admin' && run.userId !== user.id) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  // Publish interrupt:response event to the generation's Redis channel
+  const channel = getGenerationChannel(id);
+  await publishEvent(reviewPublisher, channel, {
+    type: 'interrupt:response',
+    stage,
+    action,
+    feedback,
+    updated_data,
+  });
+
+  return c.json({ success: true });
 });
 
 generationsRoutes.post('/:id/retry/:stage', async (c) => {

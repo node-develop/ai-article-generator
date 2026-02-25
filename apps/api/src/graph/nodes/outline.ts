@@ -20,11 +20,11 @@ export const outlineNode = async (
     const prompt = template
       .replace('{topic}', state.topic)
       .replace('{research}', state.researchResults)
-      .replace('{ragContext}', state.ragContext.slice(0, 2000))
+      .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
       .replace('{formatInstructions}', formatConfig.outlineInstructions);
 
-    console.log(`[Outline] Calling OpenRouter (google/gemini-3-pro-preview) for ${state.contentType}...`);
-    const model = createChatModel({ temperature: 0.5, maxTokens: 3000 });
+    console.log(`[Outline] Calling OpenRouter (google/gemini-3-pro-preview) for ${state.contentType} (maxTokens: ${formatConfig.outlineMaxTokens})...`);
+    const model = createChatModel({ temperature: 0.5, maxTokens: formatConfig.outlineMaxTokens });
 
     const response = await model.invoke([
       { role: 'user', content: prompt },

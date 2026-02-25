@@ -43,7 +43,7 @@ export interface StageLogEntry {
 export interface CreateGenerationRequest {
   topic: string;
   content_type: ContentType;
-  input_url?: string;
+  input_urls?: string[];
   company_links?: string[];
   target_keywords?: string[];
   enable_outline_review?: boolean;
@@ -55,7 +55,7 @@ export interface GenerationRunResponse {
   user_id: string;
   topic: string;
   content_type: ContentType;
-  input_url: string | null;
+  input_urls: string[];
   company_links: string[];
   target_keywords: string[];
   enable_review: boolean;

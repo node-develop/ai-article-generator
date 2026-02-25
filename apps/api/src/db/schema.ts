@@ -119,7 +119,7 @@ export const generationRuns = pgTable('generation_runs', {
   userId: text('user_id').notNull().references(() => users.id),
   topic: text('topic').notNull(),
   contentType: text('content_type').$type<'review' | 'tutorial' | 'longread' | 'news' | 'digest'>().default('longread').notNull(),
-  inputUrl: text('input_url'),
+  inputUrls: text('input_urls').array(),
   companyLinks: text('company_links').array(),
   targetKeywords: text('target_keywords').array(),
   enableReview: boolean('enable_review').default(false).notNull(),

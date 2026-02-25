@@ -5,10 +5,11 @@ export const GenerationState = Annotation.Root({
   runId: Annotation<string>,
   userId: Annotation<string>,
   topic: Annotation<string>,
-  inputUrl: Annotation<string | null>,
+  inputUrls: Annotation<string[]>,
   companyLinks: Annotation<string[]>,
   targetKeywords: Annotation<string[]>,
-  enableReview: Annotation<boolean>,
+  enableOutlineReview: Annotation<boolean>,
+  enableEditReview: Annotation<boolean>,
   contentType: Annotation<string>,
 
   // Research results

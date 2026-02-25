@@ -1,0 +1,21 @@
+{
+  "name": "articleforge",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev:api": "npm run dev -w apps/api",
+    "dev:ui": "npm run dev -w apps/ui",
+    "build:api": "npm run build -w apps/api",
+    "build:ui": "npm run build -w apps/ui",
+    "db:generate": "npm run db:generate -w apps/api",
+    "db:migrate": "npm run db:migrate -w apps/api",
+    "db:studio": "npm run db:studio -w apps/api",
+    "ingest": "npm run ingest -w apps/api",
+    "ingest:add": "npm run ingest:add -w apps/api",
+    "ingest:reindex": "npm run ingest:reindex -w apps/api",
+    "ingest:stats": "npm run ingest:stats -w apps/api"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

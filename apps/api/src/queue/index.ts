@@ -19,10 +19,11 @@ export const enqueueGeneration = async (runId: string, data: {
   topic: string;
   userId: string;
   contentType?: string;
-  inputUrl?: string | null;
+  inputUrls?: string[];
   companyLinks?: string[];
   targetKeywords?: string[];
-  enableReview?: boolean;
+  enableOutlineReview?: boolean;
+  enableEditReview?: boolean;
 }) => {
   return generationQueue.add('generate', {
     runId,
