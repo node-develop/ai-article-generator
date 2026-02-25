@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   Search,
   Database,
+  BookOpen,
   ListTree,
   Pen,
   Wand2,
@@ -56,6 +57,12 @@ const PIPELINE_STAGES: StageDefinition[] = [
     label: 'RAG Context',
     icon: Database,
     matchStatuses: ['rag_context'],
+  },
+  {
+    key: 'build_style_guide',
+    label: 'Style Guide',
+    icon: BookOpen,
+    matchStatuses: ['build_style_guide'],
   },
   {
     key: 'outline',

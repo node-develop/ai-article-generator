@@ -30,7 +30,7 @@ export const editPolishNode = async (
 
     const prompt = template
       .replace('{draft}', state.fullDraft)
-      .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
+      .replace('{styleGuide}', state.styleGuide || '')
       .replace('{keywords}', state.targetKeywords.join(', '))
       .replace('{editInstructions}', formatConfig.editInstructions);
 

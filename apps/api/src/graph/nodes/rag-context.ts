@@ -14,11 +14,11 @@ export const ragContextNode = async (
   try {
     const { retrieveRelevantChunks } = await import('../../rag/retrieval.js');
 
-    await progress.stageProgress('rag_context', 'Searching reference articles...');
+    await progress.stageProgress('rag_context', 'Searching factual context in reference articles...');
 
-    // Try format-specific retrieval first
+    // Retrieve topically relevant chunks for factual grounding (not style)
     let chunks = await retrieveRelevantChunks(state.topic, {
-      topK: 10,
+      topK: 5,
       minSimilarity: 0.3,
       contentType: state.contentType as ContentType,
     });
@@ -26,7 +26,7 @@ export const ragContextNode = async (
     // Fallback to all types if not enough format-specific chunks
     if (chunks.length < 3) {
       chunks = await retrieveRelevantChunks(state.topic, {
-        topK: 10,
+        topK: 5,
         minSimilarity: 0.3,
       });
     }
@@ -35,7 +35,7 @@ export const ragContextNode = async (
       .map((c) => `[${c.articleTitle}] ${c.chunkText}`)
       .join('\n\n---\n\n');
 
-    await progress.stageProgress('rag_context', `Found ${chunks.length} relevant chunks`);
+    await progress.stageProgress('rag_context', `Found ${chunks.length} factual context chunks`);
     await progress.stageCompleted('rag_context', Date.now() - startTime);
 
     return {

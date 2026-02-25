@@ -13,6 +13,7 @@ import {
   vector,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import type { StyleMetrics, StyleQualitative, StyleStructural } from '../ingestion/style-types.js';
 
 // ── users ─────────────────────────────────────────────────
 export const users = pgTable('users', {
@@ -98,6 +99,22 @@ export const articleChunks = pgTable('article_chunks', {
   index('article_chunks_article_id_idx').on(table.articleId),
 ]);
 
+// ── article_style_profiles ────────────────────────────────
+export const articleStyleProfiles = pgTable('article_style_profiles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  articleId: uuid('article_id').notNull().references(() => articles.id, { onDelete: 'cascade' }).unique(),
+  contentType: text('content_type').$type<'review' | 'tutorial' | 'longread' | 'news' | 'digest'>().notNull(),
+  metrics: jsonb('metrics').$type<StyleMetrics>().notNull(),
+  qualitative: jsonb('qualitative').$type<StyleQualitative>(),
+  structural: jsonb('structural').$type<StyleStructural>(),
+  modelUsed: text('model_used'),
+  version: integer('version').default(1).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('style_profiles_content_type_idx').on(table.contentType),
+  index('style_profiles_article_id_idx').on(table.articleId),
+]);
+
 // ── prompts ───────────────────────────────────────────────
 export const prompts = pgTable('prompts', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -123,7 +140,7 @@ export const generationRuns = pgTable('generation_runs', {
   companyLinks: text('company_links').array(),
   targetKeywords: text('target_keywords').array(),
   enableReview: boolean('enable_review').default(false).notNull(),
-  status: text('status').$type<'pending' | 'research' | 'rag_context' | 'outline' | 'outline_review' | 'writing' | 'editing' | 'edit_review' | 'images' | 'assembling' | 'completed' | 'failed'>().default('pending').notNull(),
+  status: text('status').$type<'pending' | 'research' | 'rag_context' | 'build_style_guide' | 'outline' | 'outline_review' | 'writing' | 'editing' | 'edit_review' | 'images' | 'assembling' | 'completed' | 'failed'>().default('pending').notNull(),
   currentStage: text('current_stage'),
   resultArticleId: uuid('result_article_id').references(() => articles.id),
   langsmithTraceUrl: text('langsmith_trace_url'),
@@ -192,11 +209,16 @@ export const accountsRelations = relations(accounts, ({ one }) => ({
 
 export const articlesRelations = relations(articles, ({ many, one }) => ({
   chunks: many(articleChunks),
+  styleProfile: one(articleStyleProfiles, { fields: [articles.id], references: [articleStyleProfiles.articleId] }),
   createdByUser: one(users, { fields: [articles.createdBy], references: [users.id] }),
 }));
 
 export const articleChunksRelations = relations(articleChunks, ({ one }) => ({
   article: one(articles, { fields: [articleChunks.articleId], references: [articles.id] }),
+}));
+
+export const articleStyleProfilesRelations = relations(articleStyleProfiles, ({ one }) => ({
+  article: one(articles, { fields: [articleStyleProfiles.articleId], references: [articles.id] }),
 }));
 
 export const generationRunsRelations = relations(generationRuns, ({ one, many }) => ({

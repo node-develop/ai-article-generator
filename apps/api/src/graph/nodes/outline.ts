@@ -21,6 +21,8 @@ export const outlineNode = async (
       .replace('{topic}', state.topic)
       .replace('{research}', state.researchResults)
       .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
+      .replace('{styleGuide}', state.styleGuide || '')
+      .replace('{styleExamples}', state.styleExamples || '')
       .replace('{formatInstructions}', formatConfig.outlineInstructions);
 
     console.log(`[Outline] Calling OpenRouter (google/gemini-3-pro-preview) for ${state.contentType} (maxTokens: ${formatConfig.outlineMaxTokens})...`);

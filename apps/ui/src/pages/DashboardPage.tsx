@@ -30,6 +30,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   pending: { label: 'Pending', className: 'bg-gray-100 text-gray-700 border-gray-200' },
   research: { label: 'Research', className: 'bg-blue-100 text-blue-700 border-blue-200' },
   rag_context: { label: 'RAG Context', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+  build_style_guide: { label: 'Style Guide', className: 'bg-blue-100 text-blue-700 border-blue-200' },
   outline: { label: 'Outline', className: 'bg-blue-100 text-blue-700 border-blue-200' },
   outline_review: { label: 'Outline Review', className: 'bg-amber-100 text-amber-700 border-amber-200' },
   writing: { label: 'Writing', className: 'bg-blue-100 text-blue-700 border-blue-200' },

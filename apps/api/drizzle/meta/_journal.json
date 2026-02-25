@@ -22,6 +22,13 @@
       "when": 1771977600000,
       "tag": "0002_input_urls_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772006400000,
+      "tag": "0003_article_style_profiles",
+      "breakpoints": true
     }
   ]
 }

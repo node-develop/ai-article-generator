@@ -5,8 +5,9 @@ import { classifyArticle } from './classify.js';
 import { chunkText } from './chunk.js';
 import { embedTexts } from './embed.js';
 import { db } from '../db/index.js';
-import { articles, articleChunks } from '../db/schema.js';
-import { eq, count, sql } from 'drizzle-orm';
+import { articles, articleChunks, articleStyleProfiles } from '../db/schema.js';
+import { eq, count, sql, isNull } from 'drizzle-orm';
+import { computeStyleMetrics } from './analyze-metrics.js';
 
 const args = process.argv.slice(2);
 const getArg = (name: string): string | undefined => {
@@ -158,6 +159,8 @@ const showStats = async () => {
   const [chunkCount] = await db.select({ count: count() }).from(articleChunks);
   const [refCount] = await db.select({ count: count() }).from(articles).where(eq(articles.isReference, true));
   const [embeddedCount] = await db.select({ count: count() }).from(articleChunks).where(sql`${articleChunks.embedding} IS NOT NULL`);
+  const [profileCount] = await db.select({ count: count() }).from(articleStyleProfiles);
+  const [qualitativeCount] = await db.select({ count: count() }).from(articleStyleProfiles).where(sql`${articleStyleProfiles.qualitative} IS NOT NULL`);
 
   const typeStats = await db.select({
     contentType: articles.contentType,
@@ -170,11 +173,112 @@ const showStats = async () => {
   console.log(`  Generated:  ${Number(articleCount.count) - Number(refCount.count)}`);
   console.log(`Chunks:       ${chunkCount.count}`);
   console.log(`  Embedded:   ${embeddedCount.count}`);
+  console.log(`Style profiles: ${profileCount.count}`);
+  console.log(`  With qualitative: ${qualitativeCount.count}`);
   console.log('\nBy content type:');
   for (const stat of typeStats) {
     console.log(`  ${stat.contentType}: ${stat.count}`);
   }
   console.log();
+};
+
+const computeMetricsMode = async () => {
+  console.log('\n=== Computing Style Metrics ===\n');
+
+  const allArticles = await db.select({
+    id: articles.id,
+    title: articles.title,
+    cleanText: articles.cleanText,
+    contentType: articles.contentType,
+  }).from(articles).where(eq(articles.isReference, true));
+
+  console.log(`Found ${allArticles.length} reference articles\n`);
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < allArticles.length; i++) {
+    const article = allArticles[i];
+    console.log(`[${i + 1}/${allArticles.length}] ${article.title.slice(0, 60)}...`);
+
+    const metrics = computeStyleMetrics(article.cleanText);
+
+    // Check if profile already exists
+    const [existing] = await db.select({ id: articleStyleProfiles.id })
+      .from(articleStyleProfiles)
+      .where(eq(articleStyleProfiles.articleId, article.id))
+      .limit(1);
+
+    if (existing) {
+      await db.update(articleStyleProfiles)
+        .set({ metrics, contentType: article.contentType as any })
+        .where(eq(articleStyleProfiles.id, existing.id));
+      updated++;
+    } else {
+      await db.insert(articleStyleProfiles).values({
+        articleId: article.id,
+        contentType: article.contentType as any,
+        metrics,
+      });
+      created++;
+    }
+
+    console.log(`  avgSentLen=${metrics.avgSentenceLength} vocabRich=${metrics.vocabularyRichness} techDensity=${metrics.technicalTermDensity}`);
+  }
+
+  console.log(`\n=== Done: ${created} created, ${updated} updated, ${skipped} skipped ===\n`);
+};
+
+const analyzeStyleMode = async () => {
+  console.log('\n=== Analyzing Style (LLM-based) ===\n');
+
+  const { analyzeStyleQualitative } = await import('./analyze-qualitative.js');
+
+  // Find profiles that have metrics but no qualitative analysis
+  const profiles = await db.select({
+    profileId: articleStyleProfiles.id,
+    articleId: articleStyleProfiles.articleId,
+    contentType: articleStyleProfiles.contentType,
+    title: articles.title,
+    cleanText: articles.cleanText,
+  })
+    .from(articleStyleProfiles)
+    .innerJoin(articles, eq(articleStyleProfiles.articleId, articles.id))
+    .where(isNull(articleStyleProfiles.qualitative));
+
+  const batchLimit = Number(getArg('batch')) || profiles.length;
+  const toProcess = profiles.slice(0, batchLimit);
+
+  console.log(`Found ${profiles.length} profiles without qualitative analysis (processing ${toProcess.length})\n`);
+
+  let processed = 0;
+  let failed = 0;
+
+  for (let i = 0; i < toProcess.length; i++) {
+    const profile = toProcess[i];
+    console.log(`[${i + 1}/${toProcess.length}] ${profile.title.slice(0, 60)}...`);
+
+    try {
+      const { qualitative, structural } = await analyzeStyleQualitative(
+        profile.title,
+        profile.cleanText,
+        profile.contentType,
+      );
+
+      await db.update(articleStyleProfiles)
+        .set({ qualitative, structural, modelUsed: 'openai/gpt-4o-mini' })
+        .where(eq(articleStyleProfiles.id, profile.profileId));
+
+      console.log(`  tone: ${qualitative.toneDescription.slice(0, 80)}...`);
+      processed++;
+    } catch (err) {
+      console.error(`  FAILED: ${(err as Error).message}`);
+      failed++;
+    }
+  }
+
+  console.log(`\n=== Done: ${processed} analyzed, ${failed} failed ===\n`);
 };
 
 const run = async () => {
@@ -190,6 +294,12 @@ const run = async () => {
       break;
     case 'stats':
       await showStats();
+      break;
+    case 'compute-metrics':
+      await computeMetricsMode();
+      break;
+    case 'analyze-style':
+      await analyzeStyleMode();
       break;
     default:
       console.error(`Unknown mode: ${mode}`);

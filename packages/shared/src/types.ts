@@ -9,6 +9,7 @@ export type GenerationStatus =
   | 'pending'
   | 'research'
   | 'rag_context'
+  | 'build_style_guide'
   | 'outline'
   | 'outline_review'
   | 'writing'
@@ -23,6 +24,7 @@ export type GenerationStatus =
 export type GenerationStage =
   | 'research'
   | 'rag_context'
+  | 'build_style_guide'
   | 'outline'
   | 'write_sections'
   | 'edit_polish'

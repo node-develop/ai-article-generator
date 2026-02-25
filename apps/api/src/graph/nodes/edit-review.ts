@@ -64,7 +64,7 @@ export const editReviewNode = async (
 
       const prompt = template
         .replace('{draft}', currentContent)
-        .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
+        .replace('{styleGuide}', state.styleGuide || '')
         .replace('{keywords}', state.targetKeywords.join(', '))
         .replace('{editInstructions}', formatConfig.editInstructions)
         + `\n\nПредыдущий вариант текста был отклонён редактором. Обратная связь:\n${response.feedback}\n\nДоработай текст с учётом обратной связи.`;

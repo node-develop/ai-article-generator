@@ -66,6 +66,8 @@ export const outlineReviewNode = async (
         .replace('{topic}', state.topic)
         .replace('{research}', state.researchResults)
         .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
+        .replace('{styleGuide}', state.styleGuide || '')
+        .replace('{styleExamples}', state.styleExamples || '')
         .replace('{formatInstructions}', formatConfig.outlineInstructions)
         + `\n\nПредыдущий вариант плана был отклонён. Обратная связь от редактора:\n${response.feedback}\n\nПредыдущий план:\n${currentOutline}\n\nСоздай новый план с учётом обратной связи.`;
 

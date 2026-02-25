@@ -20,6 +20,11 @@ export const GenerationState = Annotation.Root({
   ragContext: Annotation<string>,
   ragChunkCount: Annotation<number>,
 
+  // Style guide
+  styleGuide: Annotation<string>,
+  styleExamples: Annotation<string>,
+  styleProfileCount: Annotation<number>,
+
   // Outline
   outline: Annotation<string>,
 
