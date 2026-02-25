@@ -119,9 +119,17 @@ services:
       - dokploy-network
     labels:
       - traefik.enable=true
+      # HTTPS
       - traefik.http.routers.articleforge-ui.rule=Host(`${APP_DOMAIN}`)
       - traefik.http.routers.articleforge-ui.entrypoints=websecure
       - traefik.http.routers.articleforge-ui.tls.certResolver=letsencrypt
+      # HTTP → HTTPS redirect
+      - traefik.http.routers.articleforge-ui-http.rule=Host(`${APP_DOMAIN}`)
+      - traefik.http.routers.articleforge-ui-http.entrypoints=web
+      - traefik.http.routers.articleforge-ui-http.middlewares=redirect-to-https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
+      - traefik.http.middlewares.redirect-to-https.redirectscheme.permanent=true
+      # Backend
       - traefik.http.services.articleforge-ui.loadbalancer.server.port=80
 
 volumes:
