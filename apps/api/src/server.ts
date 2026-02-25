@@ -1,10 +1,14 @@
 import 'dotenv/config';
+import { dirname, extname, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
-import { serveStatic } from '@hono/node-server/serve-static';
 import { createNodeWebSocket } from '@hono/node-ws';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 import { authRoutes } from './routes/auth.js';
 import { articlesRoutes } from './routes/articles.js';
 import { promptsRoutes } from './routes/prompts.js';
@@ -39,10 +43,29 @@ app.use('/api/*', cors({
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));
 
 // Serve uploaded images (no auth required for image assets)
-app.use('/api/uploads/*', serveStatic({
-  root: './uploads',
-  rewriteRequestPath: (path) => path.replace(/^\/api\/uploads/, ''),
-}));
+// Use absolute path to avoid CWD-dependent resolution (npm workspaces run from monorepo root)
+const uploadsRoot = resolve(__dirname, '..', 'uploads');
+console.log(`[Server] Serving uploads from: ${uploadsRoot}`);
+
+const IMAGE_MIME: Record<string, string> = {
+  '.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.png': 'image/png',
+  '.gif': 'image/gif', '.webp': 'image/webp', '.svg': 'image/svg+xml',
+};
+
+app.get('/api/uploads/images/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  if (filename.includes('..') || filename.includes('/')) return c.notFound();
+  const filePath = resolve(uploadsRoot, 'images', filename);
+  try {
+    const data = await readFile(filePath);
+    const mime = IMAGE_MIME[extname(filename).toLowerCase()] || 'application/octet-stream';
+    return new Response(data, {
+      headers: { 'Content-Type': mime, 'Cache-Control': 'public, max-age=86400' },
+    });
+  } catch {
+    return c.notFound();
+  }
+});
 
 // Auth routes (better-auth)
 app.route('/api/auth', authRoutes);

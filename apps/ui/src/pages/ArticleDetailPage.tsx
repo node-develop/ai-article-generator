@@ -35,6 +35,7 @@ const CONTENT_TYPE_LABELS: Record<string, string> = {
   tutorial: 'Tutorial',
   longread: 'Longread',
   news: 'News',
+  digest: 'Digest',
 };
 
 const CONTENT_TYPE_COLORS: Record<string, string> = {
@@ -42,6 +43,7 @@ const CONTENT_TYPE_COLORS: Record<string, string> = {
   tutorial: 'bg-green-100 text-green-800',
   longread: 'bg-purple-100 text-purple-800',
   news: 'bg-orange-100 text-orange-800',
+  digest: 'bg-teal-100 text-teal-800',
 };
 
 const formatDate = (dateStr: string | null) => {
