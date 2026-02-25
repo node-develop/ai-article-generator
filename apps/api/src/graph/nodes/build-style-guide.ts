@@ -26,8 +26,7 @@ export const buildStyleGuideNode = async (
         styleGuide: '',
         styleExamples: '',
         styleProfileCount: 0,
-        currentStage: 'build_style_guide',
-      };
+        };
     }
 
     await progress.stageProgress('build_style_guide', `Found ${profiles.length} style profiles, building guide...`);
@@ -46,7 +45,6 @@ export const buildStyleGuideNode = async (
       styleGuide,
       styleExamples,
       styleProfileCount: profiles.length,
-      currentStage: 'build_style_guide',
     };
   } catch (err) {
     console.warn('[BuildStyleGuide] Style guide build failed:', (err as Error).message);
@@ -56,7 +54,6 @@ export const buildStyleGuideNode = async (
       styleGuide: '',
       styleExamples: '',
       styleProfileCount: 0,
-      currentStage: 'build_style_guide',
     };
   }
 };

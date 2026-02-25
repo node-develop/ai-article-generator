@@ -41,7 +41,6 @@ export const ragContextNode = async (
     return {
       ragContext: ragContext || 'No relevant context found in reference articles.',
       ragChunkCount: chunks.length,
-      currentStage: 'rag_context',
     };
   } catch (err) {
     console.warn('RAG retrieval failed:', (err as Error).message);
@@ -50,7 +49,6 @@ export const ragContextNode = async (
     return {
       ragContext: 'RAG context unavailable.',
       ragChunkCount: 0,
-      currentStage: 'rag_context',
     };
   }
 };

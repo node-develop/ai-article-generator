@@ -1,10 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useArticles } from '@/api/hooks';
+import { useArticles, useDeleteArticle } from '@/api/hooks';
+import { useAuthStore } from '@/stores/auth';
 import type { ContentType } from '@articleforge/shared/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -19,6 +31,7 @@ import {
   Loader2,
   Calendar,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -50,6 +63,8 @@ export const ArticlesPage = () => {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [contentTypeFilter, setContentTypeFilter] = useState<string>('all');
+  const deleteArticle = useDeleteArticle();
+  const canDelete = useAuthStore((s) => s.canGenerate); // admin or editor
 
   const filters = {
     contentType: contentTypeFilter !== 'all' ? (contentTypeFilter as ContentType) : undefined,
@@ -139,6 +154,39 @@ export const ArticlesPage = () => {
                 >
                   {CONTENT_TYPE_LABELS[article.content_type] ?? article.content_type}
                 </Badge>
+                {canDelete() && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={(e) => e.stopPropagation()}
+                        disabled={deleteArticle.isPending}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete article?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete "{article.title}" and all associated data.
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-white hover:bg-destructive/90"
+                          onClick={() => deleteArticle.mutate(article.id)}
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </CardContent>
             </Card>
           ))}

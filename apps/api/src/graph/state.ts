@@ -46,7 +46,10 @@ export const GenerationState = Annotation.Root({
   // Tracking
   totalTokens: Annotation<number>,
   totalCost: Annotation<number>,
-  currentStage: Annotation<string>,
+  currentStage: Annotation<string>({
+    default: () => 'pending',
+    reducer: (_prev, next) => next,
+  }),
   error: Annotation<string | null>,
 });
 

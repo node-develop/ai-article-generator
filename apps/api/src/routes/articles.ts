@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { toSnakeKeys } from '../utils/serialize.js';
 import { db } from '../db/index.js';
-import { articles, articleChunks } from '../db/schema.js';
+import { articles, articleChunks, generationRuns } from '../db/schema.js';
 import { eq, and, or, desc, count } from 'drizzle-orm';
 
 type AuthUser = {
@@ -88,6 +88,36 @@ articlesRoutes.patch('/:id/library', async (c) => {
     .returning();
 
   return c.json(toSnakeKeys(updated));
+});
+
+articlesRoutes.delete('/:id', async (c) => {
+  const user = c.get('user' as never) as AuthUser;
+
+  if (user.role === 'viewer') {
+    return c.json({ error: 'Viewers cannot delete articles' }, 403);
+  }
+
+  const id = c.req.param('id');
+
+  const [article] = await db.select().from(articles).where(eq(articles.id, id)).limit(1);
+  if (!article) {
+    return c.json({ error: 'Article not found' }, 404);
+  }
+
+  // Only owner or admin can delete
+  if (user.role !== 'admin' && article.createdBy !== user.id) {
+    return c.json({ error: 'Forbidden' }, 403);
+  }
+
+  // Clear resultArticleId in any generation runs pointing to this article
+  await db.update(generationRuns)
+    .set({ resultArticleId: null })
+    .where(eq(generationRuns.resultArticleId, id));
+
+  // Delete the article (chunks and style profiles cascade-delete via FK)
+  await db.delete(articles).where(eq(articles.id, id));
+
+  return c.json({ success: true });
 });
 
 articlesRoutes.post('/search', async (c) => {

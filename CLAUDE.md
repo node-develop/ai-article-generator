@@ -52,8 +52,8 @@ npm run build:ui
 
 ```
 UI → POST /api/generations → enqueueGeneration() → BullMQ queue
-Worker picks up job → LangGraph StateGraph executes 7 nodes sequentially:
-  research → rag_context → create_outline → write_sections → edit_polish → image_generate → assemble
+Worker picks up job → LangGraph StateGraph executes nodes:
+  research → [rag_context + build_style_guide] (parallel) → create_outline → write_sections → edit_polish → image_generate → assemble
 Each node publishes progress → Redis PubSub channel `generation:{runId}`
 API Server subscribes to PubSub → pushes SSE events to connected clients
 Human-in-the-loop (optional): interrupt at outline/edit stages → WebSocket bidirectional
@@ -73,6 +73,30 @@ The worker never talks to clients directly. All events flow: Worker → Redis Pu
 - **LangGraph.js** `StateGraph` for the generation pipeline. State defined via `Annotation.Root` in `apps/api/src/graph/state.ts`. Each node is a separate file in `apps/api/src/graph/nodes/`.
 - **BullMQ** queue named `article-generation`. Queue config in `apps/api/src/queue/index.ts`.
 - **Shared types** in `packages/shared/src/` — `types.ts` (API request/response types, enums), `events.ts` (SSE/WS event schemas, Redis channel helpers).
+
+### Author Style Matching System
+
+Pre-computed style profiles replace naive "dump raw chunks" for tone-of-voice matching:
+
+1. **Ingestion-time analysis** — Each reference article gets a `article_style_profiles` record with:
+   - `metrics` (JSON): heuristic stats — sentence length, vocabulary richness, tech term density, etc. Computed in `apps/api/src/ingestion/analyze-metrics.ts`.
+   - `qualitative` (JSON): LLM-extracted style features — tone, humor, characteristic phrases, avoided patterns. Computed in `apps/api/src/ingestion/analyze-qualitative.ts` via `gpt-4o-mini`.
+   - `structural` (JSON): heading style, transition phrases, list patterns.
+
+2. **Runtime** — `build_style_guide` graph node (runs parallel with `rag_context`, zero LLM cost):
+   - Retrieves profiles by `contentType` (not topic) from `article_style_profiles`
+   - Aggregates into structured Russian-language style directive via `apps/api/src/graph/style-guide.ts`
+   - Retrieves 2-3 exemplar paragraphs from reference articles
+   - Injects `{styleGuide}` + `{styleExamples}` into outline/write/edit prompts
+
+3. **RAG context** now serves as **factual grounding** only (topK reduced 10→5), while style matching is handled by the dedicated style guide.
+
+CLI commands for style analysis:
+```bash
+npm run ingest -- --mode=compute-metrics    # Heuristic metrics (free, ~1ms/article)
+npm run ingest -- --mode=analyze-style      # LLM analysis (~$0.01/article)
+npm run ingest -- --mode=analyze-style --batch=50  # Process in batches
+```
 
 ### UI Architecture
 

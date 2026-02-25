@@ -1,11 +1,23 @@
-import { useParams, Link } from 'react-router-dom';
-import { useArticle, useSaveToLibrary } from '@/api/hooks';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useArticle, useSaveToLibrary, useDeleteArticle } from '@/api/hooks';
+import { useAuthStore } from '@/stores/auth';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   ArrowLeft,
   BookOpen,
@@ -15,6 +27,7 @@ import {
   FileText,
   Layers,
   Loader2,
+  Trash2,
 } from 'lucide-react';
 
 const CONTENT_TYPE_LABELS: Record<string, string> = {
@@ -42,8 +55,11 @@ const formatDate = (dateStr: string | null) => {
 
 export const ArticleDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: article, isLoading, error } = useArticle(id);
   const saveToLibrary = useSaveToLibrary();
+  const deleteArticle = useDeleteArticle();
+  const canDelete = useAuthStore((s) => s.canGenerate); // admin or editor
 
   if (isLoading) {
     return (
@@ -88,7 +104,7 @@ export const ArticleDetailPage = () => {
 
       {/* Actions for generated articles */}
       {!article.is_reference && (
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-2">
           <Button
             variant="outline"
             size="sm"
@@ -98,6 +114,42 @@ export const ArticleDetailPage = () => {
             <BookOpen className="mr-1.5 h-4 w-4" />
             {saveToLibrary.isPending ? 'Saving...' : 'Save to Library'}
           </Button>
+          {canDelete() && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={deleteArticle.isPending}
+                >
+                  <Trash2 className="mr-1.5 h-4 w-4" />
+                  {deleteArticle.isPending ? 'Deleting...' : 'Delete'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete article?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete this article and all associated data.
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-white hover:bg-destructive/90"
+                    onClick={() => {
+                      deleteArticle.mutate(article.id, {
+                        onSuccess: () => navigate('/articles'),
+                      });
+                    }}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       )}
 

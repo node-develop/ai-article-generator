@@ -125,6 +125,19 @@ export const useSaveToLibrary = () => {
   });
 };
 
+export const useDeleteArticle = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ success: boolean }>(`/api/articles/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['articles'] });
+      qc.invalidateQueries({ queryKey: ['generations'] });
+      qc.invalidateQueries({ queryKey: ['stats'] });
+    },
+  });
+};
+
 // ---------------------------------------------------------------------------
 // Prompts
 // ---------------------------------------------------------------------------
