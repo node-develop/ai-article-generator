@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="20" y1="4" x2="26" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="32" height="32" rx="7" fill="url(#bg)"/>
+  <!-- Document body -->
+  <rect x="7" y="6" width="14" height="20" rx="2" fill="white" opacity="0.95"/>
+  <!-- Text lines -->
+  <rect x="10" y="10" width="8" height="1.5" rx="0.75" fill="#6366f1" opacity="0.4"/>
+  <rect x="10" y="13.5" width="6" height="1.5" rx="0.75" fill="#6366f1" opacity="0.3"/>
+  <rect x="10" y="17" width="7" height="1.5" rx="0.75" fill="#6366f1" opacity="0.4"/>
+  <rect x="10" y="20.5" width="5" height="1.5" rx="0.75" fill="#6366f1" opacity="0.3"/>
+  <!-- AI spark / lightning bolt -->
+  <path d="M23 6l-3 6h3l-4 8 2-5h-3l3-7h2z" fill="url(#spark)"/>
+  <!-- Small sparkle dots -->
+  <circle cx="26" cy="8" r="1" fill="#fbbf24" opacity="0.8"/>
+  <circle cx="19" cy="5" r="0.7" fill="#fbbf24" opacity="0.6"/>
+</svg>
