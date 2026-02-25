@@ -119,6 +119,7 @@ services:
       - dokploy-network
     labels:
       - traefik.enable=true
+      - traefik.docker.network=dokploy-network
       # HTTPS
       - traefik.http.routers.articleforge-ui.rule=Host(`${APP_DOMAIN}`)
       - traefik.http.routers.articleforge-ui.entrypoints=websecure
