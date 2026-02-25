@@ -14,11 +14,7 @@ COPY tsconfig.base.json ./
 COPY packages/shared/ ./packages/shared/
 COPY apps/api/ ./apps/api/
 
-# Build shared package first
-WORKDIR /app/packages/shared
-RUN npx tsc
-
-# Build API
+# Build API (tsc -b handles project references, builds shared first)
 WORKDIR /app/apps/api
 RUN npm run build
 
