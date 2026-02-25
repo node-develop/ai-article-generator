@@ -32,9 +32,9 @@ const PIPELINE_STAGES = [
 
 const STAGE_PLACEHOLDERS: Record<string, string[]> = {
   research: ['{topic}', '{target_keywords}', '{inputUrls}'],
-  outline: ['{topic}', '{research_results}', '{ragContext}', '{styleGuide}', '{styleExamples}', '{formatInstructions}'],
-  write_section: ['{topic}', '{outline}', '{research_results}', '{ragContext}', '{styleGuide}', '{styleExamples}', '{sectionInstructions}'],
-  edit_polish: ['{topic}', '{draft}', '{sections}', '{target_keywords}', '{styleGuide}', '{editInstructions}'],
+  outline: ['{topic}', '{research}', '{ragContext}', '{styleBlock}', '{formatInstructions}'],
+  write_section: ['{topic}', '{outline}', '{research}', '{ragContext}', '{styleBlock}', '{sectionInstructions}', '{companyLinks}'],
+  edit_polish: ['{draft}', '{styleBlock}', '{keywords}', '{editInstructions}'],
   image_prompt: ['{title}', '{summary}'],
 };
 

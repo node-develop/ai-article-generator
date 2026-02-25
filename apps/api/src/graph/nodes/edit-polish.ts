@@ -2,6 +2,7 @@ import { createChatModel } from '../../lib/openrouter.js';
 import { getPromptTemplate } from '../prompts.js';
 import { getFormatConfig } from '../format-config.js';
 import { getProgress } from '../progress.js';
+import { buildStyleBlock } from '../style-block.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
@@ -30,7 +31,7 @@ export const editPolishNode = async (
 
     const prompt = template
       .replace('{draft}', state.fullDraft)
-      .replace('{styleGuide}', state.styleGuide || '')
+      .replace('{styleBlock}', buildStyleBlock(state.styleGuide, state.styleExamples))
       .replace('{keywords}', state.targetKeywords.join(', '))
       .replace('{editInstructions}', formatConfig.editInstructions);
 

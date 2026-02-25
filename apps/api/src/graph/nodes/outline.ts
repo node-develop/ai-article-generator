@@ -2,6 +2,7 @@ import { createChatModel } from '../../lib/openrouter.js';
 import { getPromptTemplate } from '../prompts.js';
 import { getFormatConfig } from '../format-config.js';
 import { getProgress } from '../progress.js';
+import { buildStyleBlock } from '../style-block.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
@@ -21,8 +22,7 @@ export const outlineNode = async (
       .replace('{topic}', state.topic)
       .replace('{research}', state.researchResults)
       .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
-      .replace('{styleGuide}', state.styleGuide || '')
-      .replace('{styleExamples}', state.styleExamples || '')
+      .replace('{styleBlock}', buildStyleBlock(state.styleGuide, state.styleExamples))
       .replace('{formatInstructions}', formatConfig.outlineInstructions);
 
     console.log(`[Outline] Calling OpenRouter (google/gemini-3-pro-preview) for ${state.contentType} (maxTokens: ${formatConfig.outlineMaxTokens})...`);

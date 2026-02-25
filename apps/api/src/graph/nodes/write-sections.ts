@@ -2,6 +2,7 @@ import { createChatModel } from '../../lib/openrouter.js';
 import { getPromptTemplate } from '../prompts.js';
 import { getFormatConfig } from '../format-config.js';
 import { getProgress } from '../progress.js';
+import { buildStyleBlock } from '../style-block.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
@@ -78,8 +79,7 @@ export const writeSectionsNode = async (
         .replace('{outline}', state.outline)
         .replace('{research}', state.researchResults.slice(0, formatConfig.contextSliceLimit))
         .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
-        .replace('{styleGuide}', state.styleGuide || '')
-        .replace('{styleExamples}', state.styleExamples || '')
+        .replace('{styleBlock}', buildStyleBlock(state.styleGuide, state.styleExamples))
         .replace('{companyLinks}', state.companyLinks.join(', '))
         .replace('{sectionInstructions}', formatConfig.sectionInstructions);
 

@@ -6,6 +6,7 @@ import { getInterruptHandler } from '../interrupt.js';
 import { createChatModel } from '../../lib/openrouter.js';
 import { getPromptTemplate } from '../prompts.js';
 import { getFormatConfig } from '../format-config.js';
+import { buildStyleBlock } from '../style-block.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
@@ -66,8 +67,7 @@ export const outlineReviewNode = async (
         .replace('{topic}', state.topic)
         .replace('{research}', state.researchResults)
         .replace('{ragContext}', state.ragContext.slice(0, formatConfig.contextSliceLimit))
-        .replace('{styleGuide}', state.styleGuide || '')
-        .replace('{styleExamples}', state.styleExamples || '')
+        .replace('{styleBlock}', buildStyleBlock(state.styleGuide, state.styleExamples))
         .replace('{formatInstructions}', formatConfig.outlineInstructions)
         + `\n\nПредыдущий вариант плана был отклонён. Обратная связь от редактора:\n${response.feedback}\n\nПредыдущий план:\n${currentOutline}\n\nСоздай новый план с учётом обратной связи.`;
 

@@ -6,6 +6,7 @@ import { getInterruptHandler } from '../interrupt.js';
 import { createChatModel } from '../../lib/openrouter.js';
 import { getPromptTemplate } from '../prompts.js';
 import { getFormatConfig } from '../format-config.js';
+import { buildStyleBlock } from '../style-block.js';
 import type { GenerationStateType } from '../state.js';
 import type { RunnableConfig } from '@langchain/core/runnables';
 
@@ -64,7 +65,7 @@ export const editReviewNode = async (
 
       const prompt = template
         .replace('{draft}', currentContent)
-        .replace('{styleGuide}', state.styleGuide || '')
+        .replace('{styleBlock}', buildStyleBlock(state.styleGuide, state.styleExamples))
         .replace('{keywords}', state.targetKeywords.join(', '))
         .replace('{editInstructions}', formatConfig.editInstructions)
         + `\n\nПредыдущий вариант текста был отклонён редактором. Обратная связь:\n${response.feedback}\n\nДоработай текст с учётом обратной связи.`;
